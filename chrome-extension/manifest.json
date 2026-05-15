@@ -20,7 +20,7 @@
     "48": "images/youtrack-timer@48px.png"
   },
   "manifest_version": 3,
-  "name": "YouTrack Time Tracker",
+  "name": "YouTrack Time Kory",
   "permissions": [
     "storage"
   ],
