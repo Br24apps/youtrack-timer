@@ -41,7 +41,43 @@ A extensão **YouTrack Time Kory** aparecerá na lista de extensões instaladas.
 
 ### 6. Configure a extensão
 
-Clique no ícone da extensão na barra de ferramentas e informe a URL do seu YouTrack e o token de acesso para autenticação.
+Clique com o botão direito no ícone da extensão na barra de ferramentas e selecione **Opções**, ou acesse diretamente via `chrome://extensions` > **Detalhes** > **Opções da extensão**.
+
+---
+
+## Como configurar a extensão
+
+### Domínio do YouTrack
+
+No campo **YouTrack server domain**, insira a URL completa do seu YouTrack:
+
+```
+https://suaempresa.youtrack.cloud
+```
+
+### Token de autenticação
+
+No campo **YouTrack authentication token**, insira o seu token permanente no formato `perm:XXXXXX`.
+
+Para gerar um token:
+
+1. Acesse seu YouTrack e vá em **Perfil** (canto superior direito)
+2. Clique em **Account Security**
+3. Na seção **Tokens**, clique em **New Token**
+4. Dê um nome ao token (ex: `kory-extension`) e clique em **Create**
+5. Copie o token gerado e cole no campo da extensão
+
+### Issues favoritas (opcional)
+
+No campo **Favorite issues**, adicione os IDs das issues que você quer fixar no popup para acesso rápido, separados por vírgula:
+
+```
+PROJ-32,PROJ-36,PROJ-48
+```
+
+### Salvar
+
+Clique em **Save**. A extensão irá validar a conexão com o servidor e estará pronta para uso.
 
 ---
 
