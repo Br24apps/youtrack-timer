@@ -47,6 +47,36 @@ const YouTrackAPI = {
                 return await response.json();
             }
             return null;
+        },
+
+        getStarred: async function () {
+            const fields = 'fields=id,idReadable,summary';
+            const query = encodeURIComponent('starred by: me');
+            const url = YouTrackAPI.url + '/api/issues' + `?${fields}&query=${query}&$top=20`;
+
+            const response = await fetch(url, {
+                headers: {
+                    accept: 'application/json',
+                    authorization: `Bearer ${YouTrackAPI.authToken}`,
+                },
+                method: 'GET',
+            });
+
+            if (response.ok) {
+                return await response.json();
+            }
+            return [];
+        }
+    },
+
+    favorites: {
+        add: async function (issueId) {
+            const { youtrackFavorite } = await chrome.storage.sync.get(['youtrackFavorite']);
+            const list = youtrackFavorite ? youtrackFavorite.split(',').map(s => s.trim()).filter(Boolean) : [];
+            if (!list.includes(issueId)) {
+                list.unshift(issueId);
+                await chrome.storage.sync.set({ youtrackFavorite: list.join(',') });
+            }
         }
     },
 
@@ -134,19 +164,25 @@ const YouTrackAPI = {
 
             const itemId = activeWorkItem.id;
             const issueId = activeWorkItem.issue.id;
-            const url = YouTrackAPI.url + `/api/issues/${issueId}/timeTracking/workItems/${itemId}`;
             const totalTime = Date.now() - activeWorkItem.created;
             const minutes = parseInt((totalTime / 1000 / 60).toFixed());
 
-            var workData = {
-                text: description ? description.replace( /(<([^>]+)>)/ig, '') : activeWorkItem.issue.summary,
+            await fetch(YouTrackAPI.url + `/api/issues/${issueId}/timeTracking/workItems/${itemId}`, {
+                headers: {
+                    authorization: `Bearer ${YouTrackAPI.authToken}`,
+                },
+                method: 'DELETE',
+            });
+
+            const cleanText = description ? description.replace(/(<([^>]+)>)/ig, '') : activeWorkItem.issue.summary;
+            const workData = {
+                text: cleanText,
                 duration: {
                     minutes: minutes < 1 ? 1 : minutes,
                 },
-                // worktype: {name: entry.task} // @todo: add worktype support.
-            }
+            };
 
-            const response = await fetch(url, {
+            const response = await fetch(YouTrackAPI.url + `/api/issues/${issueId}/timeTracking/workItems`, {
                 headers: {
                     accept: 'application/json',
                     'Content-Type': 'application/json',
@@ -156,7 +192,7 @@ const YouTrackAPI = {
                 body: JSON.stringify(workData),
             });
             if (response.ok) {
-              return await response.json();
+                return await response.json();
             }
             return response;
         },

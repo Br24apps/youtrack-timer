@@ -3,6 +3,7 @@ const initPopup = async (activeWorkItemId = null) => {
   let activeWorkItem = null;
   let recentWorkItems = [];
   let favoriteIssues = [];
+  let starredIssues = [];
   let todaysWorkItems = [];
   const { currentUser, youtrack_url, authToken, youtrackFavorite } = await chrome.storage.sync.get(['youtrack_url', 'currentUser', 'authToken', 'youtrackFavorite']);
   YouTrackAPI.init({ currentUser, youtrack_url, authToken });
@@ -15,6 +16,7 @@ const initPopup = async (activeWorkItemId = null) => {
 
     recentWorkItems = await YouTrackAPI.workItems.getRecentIssues();
     favoriteIssues = await YouTrackAPI.issues.getByIds(youtrackFavorite);
+    starredIssues = await YouTrackAPI.issues.getStarred();
 
     const today = new Date().setHours(0,0,0,0);
     todaysWorkItems = await YouTrackAPI.workItems.getRecent(today);
@@ -39,8 +41,8 @@ const initPopup = async (activeWorkItemId = null) => {
     await chrome.runtime.sendMessage({ timer_status: 'on' });
   }
 
-  if (youtrackFavorite !== '' && youtrackFavorite !== undefined) {
-    showFavoriteIssues(favoriteIssues, recentWorkItems);
+  if ((youtrackFavorite !== '' && youtrackFavorite !== undefined) || starredIssues.length > 0) {
+    showFavoriteIssues(favoriteIssues, recentWorkItems, starredIssues);
   }
 
   updateTrackedTodayTime(todaysWorkItems, activeWorkItem);
@@ -66,23 +68,48 @@ const stopButtonClick = async (event) => {
   event.target.disabled = false;
 }
 
-const timerButtonClick = async (event) => {
+const selectIssueClick = async (event) => {
+  const issueId = event.currentTarget.getAttribute('data-issue-id');
+  const issueSummary = event.currentTarget.getAttribute('data-issue-summary');
+  const { youtrack_url } = await chrome.storage.sync.get(['youtrack_url']);
+  showSelectedIssue(issueId, issueSummary, youtrack_url);
+};
+
+const showSelectedIssue = (issueId, issueSummary, youtrack_url) => {
+  document.getElementsByClassName('issue-id')[0].innerHTML = issueId;
+  document.getElementsByClassName('issue-id')[0].href = `${youtrack_url}/issue/${issueId}`;
+  document.getElementsByClassName('issue-summary')[0].innerHTML = issueSummary;
+  document.getElementsByClassName('project')[0].innerHTML = '';
+  document.getElementsByClassName('time')[0].innerHTML = '';
+  document.getElementById('description').value = '';
+
+  const startBtn = document.getElementsByClassName('start-timer')[0];
+  startBtn.setAttribute('data-issue-id', issueId);
+  startBtn.style.display = 'inline-block';
+  startBtn.onclick = startTimerClick;
+
+  document.getElementsByClassName('stop-timer')[0].style.display = 'none';
+  document.getElementsByClassName('active-timer')[0].style.display = 'block';
+  document.getElementsByClassName('no-active-timers')[0].style.display = 'none';
+  document.getElementsByClassName('cancel')[0].onclick = () => { window.close(); };
+};
+
+const startTimerClick = async (event) => {
   event.target.disabled = true;
 
   const { currentUser, youtrack_url, authToken } = await chrome.storage.sync.get(['youtrack_url', 'currentUser', 'authToken']);
   YouTrackAPI.init({ currentUser, youtrack_url, authToken });
 
-  // Stop any active timers.
   await YouTrackAPI.workItems.stopActive();
 
   const issueId = event.target.getAttribute('data-issue-id');
-
   const startedWorkItem = await YouTrackAPI.workItems.startTimer(issueId);
+  await YouTrackAPI.favorites.add(issueId);
   await chrome.runtime.sendMessage({ timer_status: 'on' });
 
   event.target.disabled = false;
   initPopup(startedWorkItem.id);
-}
+};
 
 const showActiveTimer = (activeWorkItem, youtrack_url) => {
   const total = Date.now() - activeWorkItem.created;
@@ -99,10 +126,12 @@ const showActiveTimer = (activeWorkItem, youtrack_url) => {
   document.getElementsByClassName('project')[0].innerHTML = activeWorkItem.issue.project.name;
   document.getElementsByClassName('time')[0].innerHTML = formattedHours + ':' + formattedMinutes;
 
+  document.getElementsByClassName('start-timer')[0].style.display = 'none';
+  document.getElementsByClassName('stop-timer')[0].style.display = 'inline-block';
   document.getElementsByClassName('active-timer')[0].style.display = 'block';
 
-  document.getElementsByClassName('stop-timer')[0].addEventListener("click", stopButtonClick);
-  document.getElementsByClassName('cancel')[0].addEventListener("click", () => { window.close(); });
+  document.getElementsByClassName('stop-timer')[0].onclick = stopButtonClick;
+  document.getElementsByClassName('cancel')[0].onclick = () => { window.close(); };
 }
 
 const updateTrackedTodayTime = (todaysWorkItems, activeWorkItem) => {
@@ -125,7 +154,7 @@ const updateTrackedTodayTime = (todaysWorkItems, activeWorkItem) => {
   chrome.action.setBadgeText({text: badgeText});
 }
 
-const showFavoriteIssues = (favoriteIssues, recentWorkItems) => {
+const showFavoriteIssues = (favoriteIssues, recentWorkItems, starredIssues = []) => {
   // Output list of favorite issues.
   const favoriteToolbar = document.querySelector(".favorite-issues:not(.initialized)");
   if (favoriteToolbar === null) {
@@ -133,10 +162,17 @@ const showFavoriteIssues = (favoriteIssues, recentWorkItems) => {
   }
 
   favoriteToolbar.classList.add('initialized');
-  const issuesList = favoriteIssues;
+  const issuesList = favoriteIssues || [];
+
+  starredIssues.forEach((issue) => {
+    let index = issuesList.findIndex((item) => item.id === issue.id);
+    if (index === -1) {
+      issuesList.push(issue);
+    }
+  });
 
   recentWorkItems.forEach((issue) => {
-    let index = favoriteIssues.findIndex((item) => item.id === issue.id);
+    let index = issuesList.findIndex((item) => item.id === issue.id);
     if (index === -1) {
       issuesList.push(issue);
     }
@@ -152,12 +188,13 @@ const showFavoriteIssues = (favoriteIssues, recentWorkItems) => {
     }
 
     timerButton.setAttribute('data-issue-id', issue.idReadable);
+    timerButton.setAttribute('data-issue-summary', issue.summary);
 
     let listItem = document.createElement('div');
     listItem.appendChild(timerButton);
 
     favoriteToolbar.appendChild(listItem);
-    timerButton.addEventListener('click', timerButtonClick);
+    timerButton.addEventListener('click', selectIssueClick);
   });
 }
 

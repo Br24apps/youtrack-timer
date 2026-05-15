@@ -46,7 +46,7 @@ const addButtonToToolbar = async (issueContainer) => {
 
   const issueIdEl = issueContainer.querySelector("[class^=idLink__]") ?? document.querySelector("[class^=idLink__]");
   if (!issueIdEl) return;
-  const issueId = issueIdEl.textContent;
+  const issueId = issueIdEl.textContent.trim();
 
   const timerButton = createButtonElement();
   timerButton.setAttribute('data-issue-id', issueId);
@@ -84,6 +84,7 @@ const timerButtonClick = async (event) => {
 
   if (!buttonIsActive) {
     const activeWorkItem = await YouTrackAPI.workItems.startTimer(issueId);
+    await YouTrackAPI.favorites.add(issueId);
     event.target.innerHTML = 'Stop timer';
     event.target.setAttribute('data-timer-active', 1);
     await chrome.runtime.sendMessage({ timer_status: 'on' });
