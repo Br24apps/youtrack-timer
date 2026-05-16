@@ -68,8 +68,8 @@ const stopButtonClick = async (event) => {
 
 const formatMinutes = (totalMinutes) => {
   if (totalMinutes <= 0) return '';
-  const days = Math.floor(totalMinutes / 480);
-  const hours = Math.floor((totalMinutes % 480) / 60);
+  const days = Math.floor(totalMinutes / 360);
+  const hours = Math.floor((totalMinutes % 360) / 60);
   const mins = totalMinutes % 60;
   const parts = [];
   if (days > 0) parts.push(`${days}d`);
