@@ -13,7 +13,22 @@
       <div class="header">
         <div class="extension-title">YouTrack Time Tracker</div>
         <div class="tracked-today"><span class="today-label">Today</span><span class="today-time">--:--</span></div>
-        <div class="timesheets-link-container"><a class="timesheets-link" target="_blank" href="https://_host_/timesheets?author=me">My timesheet</a></div>
+        <div class="header-actions">
+          <button class="calendar-toggle-btn" title="Ver calendário mensal">&#128197;</button>
+          <div class="timesheets-link-container"><a class="timesheets-link" target="_blank" href="https://_host_/timesheets?author=me">My timesheet</a></div>
+        </div>
+      </div>
+      <div class="calendar-view" style="display:none">
+        <div class="calendar-nav">
+          <button class="cal-prev">&#8249;</button>
+          <span class="cal-month-label"></span>
+          <button class="cal-next">&#8250;</button>
+        </div>
+        <div class="calendar-weekdays">
+          <span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span>
+        </div>
+        <div class="calendar-grid"></div>
+        <div class="calendar-total"></div>
       </div>
       <div class="content">
         <div class="favorite-issues"><span class="favorite-issues-label">Favorite and recent issues</span></div>
@@ -22,7 +37,7 @@
             <div class="issue-header">
               <a target="_blank" class="issue-id" href="https://_host_/issue/_issue_id_"></a>
               <span class="issue-summary"></span>
-              <div class="project"></div>
+              <div class="project"><span class="project-name"></span> <span class="issue-total-time"></span></div>
             </div>
             <div class="time"></div>
           </div>
