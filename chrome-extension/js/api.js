@@ -139,6 +139,24 @@ const YouTrackAPI = {
             }
             return workItems;
         },
+        getForMonth: async function (year, month) {
+            const startDate = new Date(year, month, 1).getTime();
+            const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999).getTime();
+            const fields = 'fields=id,date,created,duration(minutes),text';
+            const url = YouTrackAPI.url + '/api/workItems' +
+                `?${fields}&author=me&createdStart=${startDate}&createdEnd=${endDate}&$top=500`;
+            const response = await fetch(url, {
+                headers: {
+                    accept: 'application/json',
+                    authorization: `Bearer ${YouTrackAPI.authToken}`,
+                },
+                method: 'GET',
+            });
+            if (response.ok) {
+                return await response.json();
+            }
+            return [];
+        },
         getRecentIssues: async function () {
             const startPeriod = Date.now() - 2 * 86400 * 1000; // Get two last days.
             const workItems = await YouTrackAPI.workItems.getRecent(startPeriod);
@@ -195,6 +213,26 @@ const YouTrackAPI = {
                 return await response.json();
             }
             return response;
+        },
+
+        getTotalForIssue: async function (issueId) {
+            const fields = 'fields=duration(minutes)';
+            const query = encodeURIComponent(`Issue: ${issueId}`);
+            const url = YouTrackAPI.url + `/api/workItems?${fields}&author=me&query=${query}`;
+
+            const response = await fetch(url, {
+                headers: {
+                    accept: 'application/json',
+                    authorization: `Bearer ${YouTrackAPI.authToken}`,
+                },
+                method: 'GET',
+            });
+
+            if (response.ok) {
+                const items = await response.json();
+                return items.reduce((sum, item) => sum + (item.duration?.minutes || 0), 0);
+            }
+            return 0;
         },
 
         startTimer: async (issueId) => {
