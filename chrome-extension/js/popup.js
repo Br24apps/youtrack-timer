@@ -260,7 +260,7 @@ const renderCalendar = async (year, month) => {
     const ts = item.date || item.created;
     if (!ts) return;
     const d = new Date(ts);
-    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const key = `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
     dayMinutes[key] = (dayMinutes[key] || 0) + (item.duration?.minutes || 0);
   });
 
