@@ -5,7 +5,7 @@ const initPopup = async (activeWorkItemId = null) => {
   let favoriteIssues = [];
   let starredIssues = [];
   let todaysWorkItems = [];
-  const { currentUser, youtrack_url, authToken, youtrackFavorite } = await chrome.storage.sync.get(['youtrack_url', 'currentUser', 'authToken', 'youtrackFavorite']);
+  const { currentUser, youtrack_url, authToken, youtrackFavorite, youtrackDismissed } = await chrome.storage.sync.get(['youtrack_url', 'currentUser', 'authToken', 'youtrackFavorite', 'youtrackDismissed']);
   YouTrackAPI.init({ currentUser, youtrack_url, authToken });
 
   document.getElementsByClassName('loading-page')[0].style.display = 'block';
@@ -41,7 +41,8 @@ const initPopup = async (activeWorkItemId = null) => {
     await chrome.runtime.sendMessage({ timer_status: 'on' });
   }
 
-  showFavoriteIssues(favoriteIssues, recentWorkItems, starredIssues);
+  const dismissedList = youtrackDismissed ? youtrackDismissed.split(',').map(s => s.trim()).filter(Boolean) : [];
+  showFavoriteIssues(favoriteIssues, recentWorkItems, starredIssues, dismissedList);
 
   updateTrackedTodayTime(todaysWorkItems, activeWorkItem);
 
@@ -175,7 +176,7 @@ const updateTrackedTodayTime = (todaysWorkItems, activeWorkItem) => {
   chrome.action.setBadgeText({text: badgeText});
 }
 
-const showFavoriteIssues = (favoriteIssues, recentWorkItems, starredIssues = []) => {
+const showFavoriteIssues = (favoriteIssues, recentWorkItems, starredIssues = [], dismissed = []) => {
   // Output list of favorite issues.
   const favoriteToolbar = document.querySelector(".favorite-issues:not(.initialized)");
   if (favoriteToolbar === null) {
@@ -199,7 +200,9 @@ const showFavoriteIssues = (favoriteIssues, recentWorkItems, starredIssues = [])
     }
   });
 
-  issuesList.forEach((issue) => {
+  const visibleIssues = issuesList.filter((issue) => !dismissed.includes(issue.idReadable));
+
+  visibleIssues.forEach((issue) => {
     const label = issue.idReadable + ' ' + issue.summary;
 
     let timerButton = document.createElement('a');
@@ -208,8 +211,26 @@ const showFavoriteIssues = (favoriteIssues, recentWorkItems, starredIssues = [])
     timerButton.setAttribute('data-issue-id', issue.idReadable);
     timerButton.setAttribute('data-issue-summary', issue.summary);
 
+    let deleteBtn = document.createElement('button');
+    deleteBtn.classList.add('issue-delete-btn');
+    deleteBtn.innerHTML = '&times;';
+    deleteBtn.title = 'Remover da lista';
+    deleteBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await YouTrackAPI.favorites.remove(issue.idReadable);
+      const { youtrackDismissed } = await chrome.storage.sync.get(['youtrackDismissed']);
+      const dl = youtrackDismissed ? youtrackDismissed.split(',').map(s => s.trim()).filter(Boolean) : [];
+      if (!dl.includes(issue.idReadable)) {
+        dl.push(issue.idReadable);
+        await chrome.storage.sync.set({ youtrackDismissed: dl.join(',') });
+      }
+      listItem.remove();
+    });
+
     let listItem = document.createElement('div');
+    listItem.classList.add('favorite-issue-item');
     listItem.appendChild(timerButton);
+    listItem.appendChild(deleteBtn);
     favoriteToolbar.appendChild(listItem);
     timerButton.addEventListener('click', selectIssueClick);
 

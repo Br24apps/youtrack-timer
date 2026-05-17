@@ -166,6 +166,41 @@ button:hover {
   margin-right: 4px;
 }
 
+.favorite-issue-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.favorite-issue-item .youtrack-timer-button {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.issue-delete-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px 0 6px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.favorite-issue-item:hover .issue-delete-btn {
+  opacity: 1;
+}
+
+.issue-delete-btn:hover {
+  color: #d9534f;
+}
+
 
 /* Loading page */
 .loading-page,

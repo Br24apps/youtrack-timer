@@ -77,6 +77,12 @@ const YouTrackAPI = {
                 list.unshift(issueId);
                 await chrome.storage.sync.set({ youtrackFavorite: list.join(',') });
             }
+        },
+        remove: async function (issueId) {
+            const { youtrackFavorite } = await chrome.storage.sync.get(['youtrackFavorite']);
+            const list = youtrackFavorite ? youtrackFavorite.split(',').map(s => s.trim()).filter(Boolean) : [];
+            const updated = list.filter(id => id !== issueId);
+            await chrome.storage.sync.set({ youtrackFavorite: updated.join(',') });
         }
     },
 
