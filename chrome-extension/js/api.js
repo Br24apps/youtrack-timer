@@ -1,3 +1,11 @@
+const safeJson = async (response) => {
+    const ct = response.headers.get('content-type') || '';
+    if (!ct.includes('application/json') && !ct.includes('text/json')) {
+        throw new Error(`Unexpected response format: ${ct}`);
+    }
+    return response.json();
+};
+
 const YouTrackAPI = {
     url: null,
     authToken: null,
@@ -23,7 +31,7 @@ const YouTrackAPI = {
             });
 
             if (response.ok) {
-                return await response.json();
+                return await safeJson(response);
             }
             return null;
         }
@@ -31,6 +39,7 @@ const YouTrackAPI = {
 
     issues: {
         getByIds: async function (ids) {
+            if (!ids) return [];
             const fields = 'fields=id,idReadable,summary';
             const query = `issue ID: ${ids}`;
             const url = YouTrackAPI.url + '/api/issues' + `?${fields}&query=${query}`;
@@ -44,7 +53,7 @@ const YouTrackAPI = {
             });
 
             if (response.ok) {
-                return await response.json();
+                return await safeJson(response);
             }
             return null;
         },
@@ -63,7 +72,7 @@ const YouTrackAPI = {
             });
 
             if (response.ok) {
-                return await response.json();
+                return await safeJson(response);
             }
             return [];
         }
@@ -99,7 +108,7 @@ const YouTrackAPI = {
             });
 
             if (response.ok) {
-              return await response.json();
+              return await safeJson(response);
             }
             return null;
         },
@@ -118,7 +127,7 @@ const YouTrackAPI = {
 
             let activeWorkItem = null;
             if (response.ok) {
-                const workItems = await response.json();
+                const workItems = await safeJson(response);
                 workItems.forEach((element, index) => {
                     if (element.text !== null && element.text.includes(timerId)) {
                         activeWorkItem = element;
@@ -141,7 +150,7 @@ const YouTrackAPI = {
 
             let workItems = [];
             if (response.ok) {
-                workItems = await response.json();
+                workItems = await safeJson(response);
             }
             return workItems;
         },
@@ -159,12 +168,12 @@ const YouTrackAPI = {
                 method: 'GET',
             });
             if (response.ok) {
-                return await response.json();
+                return await safeJson(response);
             }
             return [];
         },
         getRecentIssues: async function () {
-            const startPeriod = Date.now() - 2 * 86400 * 1000; // Get two last days.
+            const startPeriod = Date.now() - 7 * 86400 * 1000; // Get last 7 days.
             const workItems = await YouTrackAPI.workItems.getRecent(startPeriod);
 
             const uniqueWorkItemIssues = [];
@@ -216,7 +225,7 @@ const YouTrackAPI = {
                 body: JSON.stringify(workData),
             });
             if (response.ok) {
-                return await response.json();
+                return await safeJson(response);
             }
             return response;
         },
@@ -235,7 +244,7 @@ const YouTrackAPI = {
             });
 
             if (response.ok) {
-                const items = await response.json();
+                const items = await safeJson(response);
                 return items.reduce((sum, item) => sum + (item.duration?.minutes || 0), 0);
             }
             return 0;
@@ -263,7 +272,7 @@ const YouTrackAPI = {
                 body: JSON.stringify(workData),
             });
             if (response.ok) {
-              return await response.json();
+              return await safeJson(response);
             }
             return response;
         }

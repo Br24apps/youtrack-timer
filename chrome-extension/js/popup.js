@@ -56,9 +56,20 @@ const stopButtonClick = async (event) => {
   YouTrackAPI.init({ currentUser, youtrack_url, authToken });
 
   const description = document.getElementById('description').value;
+  const issueId = document.getElementsByClassName('issue-id')[0]?.innerHTML?.trim();
 
   // Stop any active timers.
   await YouTrackAPI.workItems.stopActive(description);
+
+  if (issueId) {
+    await YouTrackAPI.favorites.add(issueId);
+    const { youtrackDismissed } = await chrome.storage.sync.get(['youtrackDismissed']);
+    const dl = youtrackDismissed ? youtrackDismissed.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const dlUpdated = dl.filter(id => id !== issueId);
+    if (dlUpdated.length !== dl.length) {
+      await chrome.storage.sync.set({ youtrackDismissed: dlUpdated.join(',') });
+    }
+  }
 
   await chrome.runtime.sendMessage({ timer_status: 'off' });
 
@@ -125,6 +136,14 @@ const startTimerClick = async (event) => {
   const issueId = event.target.getAttribute('data-issue-id');
   const startedWorkItem = await YouTrackAPI.workItems.startTimer(issueId);
   await YouTrackAPI.favorites.add(issueId);
+
+  const { youtrackDismissed } = await chrome.storage.sync.get(['youtrackDismissed']);
+  const dl = youtrackDismissed ? youtrackDismissed.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const dlUpdated = dl.filter(id => id !== issueId);
+  if (dlUpdated.length !== dl.length) {
+    await chrome.storage.sync.set({ youtrackDismissed: dlUpdated.join(',') });
+  }
+
   await chrome.runtime.sendMessage({ timer_status: 'on' });
 
   event.target.disabled = false;
@@ -200,7 +219,7 @@ const showFavoriteIssues = (favoriteIssues, recentWorkItems, starredIssues = [],
     }
   });
 
-  const visibleIssues = issuesList.filter((issue) => !dismissed.includes(issue.idReadable));
+  const visibleIssues = issuesList.filter(issue => !dismissed.includes(issue.idReadable));
 
   visibleIssues.forEach((issue) => {
     const label = issue.idReadable + ' ' + issue.summary;

@@ -1,6 +1,19 @@
 
+const isContextValid = () => {
+  try {
+    return !!chrome.runtime?.id;
+  } catch {
+    return false;
+  }
+};
+
 // Callback function to execute when mutations are observed
 const issuePageShown = (mutationList, observer) => {
+  if (!isContextValid()) {
+    observer.disconnect();
+    return;
+  }
+
   for (const mutation of mutationList) {
     if (mutation.type === "childList") {
       const issueContainer = document.querySelector("[class^=ticketContent__]:not(.tracker-button-initialized)");
@@ -55,10 +68,10 @@ const addButtonToToolbar = async (issueContainer) => {
   issueToolbar.appendChild(timerButton);
   timerButton.addEventListener("click", timerButtonClick);
 
-  const { currentUser, youtrack_url, authToken } = await chrome.storage.sync.get(['youtrack_url', 'currentUser', 'authToken']);
-  YouTrackAPI.init({ currentUser, youtrack_url, authToken });
-
   try {
+    const { currentUser, youtrack_url, authToken } = await chrome.storage.sync.get(['youtrack_url', 'currentUser', 'authToken']);
+    YouTrackAPI.init({ currentUser, youtrack_url, authToken });
+
     const activeWorkItem = await YouTrackAPI.workItems.getActive();
     const buttonIsActive = activeWorkItem !== null && activeWorkItem.issue.idReadable === issueId;
     timerButton.setAttribute('data-timer-active', buttonIsActive ? 1 : 0);
@@ -71,31 +84,44 @@ const addButtonToToolbar = async (issueContainer) => {
 }
 
 const timerButtonClick = async (event) => {
+  if (!isContextValid()) return;
+
   event.target.disabled = true;
 
-  const { currentUser, youtrack_url, authToken } = await chrome.storage.sync.get(['youtrack_url', 'currentUser', 'authToken']);
-  YouTrackAPI.init({ currentUser, youtrack_url, authToken });
+  try {
+    const { currentUser, youtrack_url, authToken } = await chrome.storage.sync.get(['youtrack_url', 'currentUser', 'authToken']);
+    YouTrackAPI.init({ currentUser, youtrack_url, authToken });
 
-  // Stop any active timers.
-  await YouTrackAPI.workItems.stopActive();
+    await YouTrackAPI.workItems.stopActive();
 
-  const buttonIsActive = parseInt(event.target.getAttribute('data-timer-active'));
-  const issueId = event.target.getAttribute('data-issue-id');
+    const buttonIsActive = parseInt(event.target.getAttribute('data-timer-active'));
+    const issueId = event.target.getAttribute('data-issue-id');
 
-  if (!buttonIsActive) {
-    const activeWorkItem = await YouTrackAPI.workItems.startTimer(issueId);
-    await YouTrackAPI.favorites.add(issueId);
-    event.target.innerHTML = 'Stop timer';
-    event.target.setAttribute('data-timer-active', 1);
-    await chrome.runtime.sendMessage({ timer_status: 'on' });
-  }
-  else {
-    event.target.innerHTML = 'Start timer';
-    event.target.setAttribute('data-timer-active', 0);
-    await chrome.runtime.sendMessage({ timer_status: 'off' });
+    if (!buttonIsActive) {
+      await YouTrackAPI.workItems.startTimer(issueId);
+      await YouTrackAPI.favorites.add(issueId);
+      const { youtrackDismissed } = await chrome.storage.sync.get(['youtrackDismissed']);
+      const dl = youtrackDismissed ? youtrackDismissed.split(',').map(s => s.trim()).filter(Boolean) : [];
+      const dlUpdated = dl.filter(id => id !== issueId);
+      if (dlUpdated.length !== dl.length) {
+        await chrome.storage.sync.set({ youtrackDismissed: dlUpdated.join(',') });
+      }
+      event.target.innerHTML = 'Stop timer';
+      event.target.setAttribute('data-timer-active', 1);
+      await chrome.runtime.sendMessage({ timer_status: 'on' });
+    } else {
+      event.target.innerHTML = 'Start timer';
+      event.target.setAttribute('data-timer-active', 0);
+      await chrome.runtime.sendMessage({ timer_status: 'off' });
+    }
+  } catch (e) {
+    if (e.message?.includes('Extension context invalidated') || !isContextValid()) {
+      observer.disconnect();
+      return;
+    }
+    event.target.disabled = false;
+    throw e;
   }
 
   event.target.disabled = false;
 }
-
-
